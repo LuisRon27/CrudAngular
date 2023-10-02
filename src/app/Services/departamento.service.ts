@@ -9,7 +9,7 @@ import { Departamento } from '../Interfaces/departamento';
 })
 export class DepartamentoService {
 
-  private urlApi: string = environment.apiEndpoint + 'Departamento/';
+  private urlApi: string = environment.apiEndpoint + 'Departamento';
 
   constructor(private http: HttpClient) { }
 
