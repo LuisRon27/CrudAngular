@@ -1,9 +1,9 @@
-import { Component } from '@angular/core';
+import { Component, Inject, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MAT_DATE_FORMATS } from '@angular/material/core';
-import { MatDialogRef } from '@angular/material/dialog';
+import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import * as moment from 'moment';  // Importación de la biblioteca Moment.js
+import * as moment from 'moment';
 import { Departamento } from '../../Interfaces/departamento';
 import { Empleado } from '../../Interfaces/empleado';
 import { DepartamentoService } from 'src/app/Services/departamento.service';
@@ -30,7 +30,7 @@ export const MY_DATE_FORMATS = {
     { provide: MAT_DATE_FORMATS, useValue: MY_DATE_FORMATS }  // Proporcionar formatos de fecha personalizados a Angular Material
   ]
 })
-export class DialogAddEditComponent {
+export class DialogAddEditComponent implements OnInit {
 
   formEmpleado: FormGroup;
   tituloAccion: string = "Nuevo Empleado";
@@ -42,7 +42,8 @@ export class DialogAddEditComponent {
     private fb: FormBuilder,
     private _snackBar: MatSnackBar,
     private _departamentoServicio: DepartamentoService,
-    private _empleadoServicio: EmpleadoService
+    private _empleadoServicio: EmpleadoService,
+    @Inject(MAT_DIALOG_DATA) public dataEmpleado: Empleado
   ) {
     // Crear un FormGroup con campos y validadores
     this.formEmpleado = this.fb.group({
@@ -50,17 +51,33 @@ export class DialogAddEditComponent {
       idDepartamento: ["", Validators.required],
       sueldo: ["", Validators.required],
       fechaContrato: ["", Validators.required],
-    })
+    });
 
     // Obtener la lista de departamentos del servicio
     this._departamentoServicio.getAll().subscribe({
       next: (data) => {
         this.listaDepartamento = data;
-        console.log(data);
-      }, error: (error) => {
-
+      },
+      error: (error) => {
+        console.error("Error al obtener la lista de departamentos:", error);
       }
-    })
+    });
+  }
+
+  ngOnInit(): void {
+    if (this.dataEmpleado) {
+      // Rellenar el formulario con los datos del empleado para la edición
+      this.formEmpleado.patchValue({
+        idEmpleado: this.dataEmpleado.idEmpleado,
+        idDepartamento: this.dataEmpleado.idDepartamento,
+        nombreCompleto: this.dataEmpleado.nombreCompleto,
+        sueldo: this.dataEmpleado.sueldo,
+        fechaContrato: moment(this.dataEmpleado.fechaContrato, 'DD/MM/YYYY')
+      });
+
+      this.tituloAccion = "Editar Empleado";
+      this.botonAccion = "Actualizar";
+    }
   }
 
   // Función para mostrar una notificación emergente (SnackBar)
@@ -77,21 +94,37 @@ export class DialogAddEditComponent {
 
     // Crear un objeto de tipo Empleado con los datos del formulario
     const modelo: Empleado = {
-      idEmpleado: 0,
+      idEmpleado: this.dataEmpleado ? this.dataEmpleado.idEmpleado : 0,
       idDepartamento: this.formEmpleado.value.idDepartamento,
       nombreCompleto: this.formEmpleado.value.nombreCompleto,
       sueldo: this.formEmpleado.value.sueldo,
-      fechaContrato: moment(this.formEmpleado.value.fechaContrato).format("DD/MM/YYYY")  // Formatear la fecha con Moment.js
-    }
+      fechaContrato: moment(this.formEmpleado.value.fechaContrato).format("DD/MM/YYYY")
+    };
 
-    // Llamar al servicio para crear un nuevo empleado y suscribirse para manejar respuestas
-    this._empleadoServicio.create(modelo).subscribe({
-      next: (data) => {
-        this.mostrarAlerta("Empleado Fue Creado", "Listo");
-        this.dialogoReferencia.close("creado");  // Cerrar el cuadro de diálogo
-      }, error: (err) => {
-        this.mostrarAlerta("Error al crear un Empleado", "Error");  // Mostrar notificación de error
-      },
-    })
+    if (this.dataEmpleado == null) {
+      // Llamar al servicio para crear un nuevo empleado
+      this._empleadoServicio.create(modelo).subscribe({
+        next: (data) => {
+          this.mostrarAlerta("Empleado Fue Creado", "Listo");
+          this.dialogoReferencia.close("creado");  // Cerrar el cuadro de diálogo
+        },
+        error: (err) => {
+          console.error("Error al crear un Empleado:", err);
+          this.mostrarAlerta("Error al crear un Empleado", "Error");
+        },
+      });
+    } else {
+      // Llamar al servicio para editar un empleado
+      this._empleadoServicio.update(this.dataEmpleado.idEmpleado, modelo).subscribe({
+        next: (data) => {
+          this.mostrarAlerta("Empleado Fue Editado", "Listo");
+          this.dialogoReferencia.close("editado");  // Cerrar el cuadro de diálogo
+        },
+        error: (err) => {
+          console.error("Error al editar el Empleado:", err);
+          this.mostrarAlerta("Error al editar el Empleado", "Error");
+        },
+      });
+    }
   }
 }

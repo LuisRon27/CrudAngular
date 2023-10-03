@@ -6,6 +6,9 @@ import { MatDialog } from '@angular/material/dialog';
 import { Empleado } from '../../Interfaces/empleado';
 import { EmpleadoService } from './../../Services/empleado.service';
 import { DialogAddEditComponent } from 'src/app/Components/dialog-add-edit/dialog-add-edit.component';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { DialogoDeleteComponent } from '../../Components/dialogo-delete/dialogo-delete.component';
+
 
 @Component({
   selector: 'app-empleado',
@@ -16,7 +19,7 @@ export class EmpleadoComponent implements AfterViewInit, OnInit {
   displayedColumns: string[] = ['NombreCompleto', 'Departamento', 'Sueldo', 'FechaContrato', 'Acciones'];
   dataSource = new MatTableDataSource<Empleado>();
 
-  constructor(private _empleadoServicio: EmpleadoService, public dialog: MatDialog) { }
+  constructor(private _empleadoServicio: EmpleadoService, public dialog: MatDialog, private _snackBar: MatSnackBar) { }
 
   ngOnInit(): void {
     this.mostrarEmpleados();
@@ -57,6 +60,47 @@ export class EmpleadoComponent implements AfterViewInit, OnInit {
     }).afterClosed().subscribe(resultado => {
       if (resultado === "creado") {
         this.mostrarEmpleados(); // Actualizar la lista de empleados si se crea uno nuevo
+      }
+    });
+  }
+
+  // Abrir el diálogo para editar un empleado
+  dialogoEditarEmpleado(dataEmpleado: Empleado) {
+    this.dialog.open(DialogAddEditComponent, {
+      disableClose: true,
+      width: "350px",
+      data: dataEmpleado
+    }).afterClosed().subscribe(resultado => {
+      if (resultado === "editado") {
+        this.mostrarEmpleados(); // Actualizar la lista de empleados
+      }
+    });
+  }
+
+  // Función para mostrar una notificación emergente (SnackBar)
+  mostrarAlerta(msg: string, accion: string) {
+    this._snackBar.open(msg, accion, {
+      horizontalPosition: "end",
+      verticalPosition: "top",
+      duration: 3000
+    });
+  }
+
+  // Abrir el diálogo para Eliminar un empleado
+  dialogoEliminarEmpleado(dataEmpleado: Empleado) {
+    this.dialog.open(DialogoDeleteComponent, {
+      disableClose: true,
+      data: dataEmpleado
+    }).afterClosed().subscribe(resultado => {
+      if (resultado === "eliminar") {
+        this._empleadoServicio.delete(dataEmpleado.idEmpleado).subscribe({
+          next: (data) => {
+            this.mostrarAlerta("Empleado Fue Eliminado","Listo");
+            this.mostrarEmpleados();
+          }, error: (err) => {
+            console.log(err);
+          }
+        })
       }
     });
   }
